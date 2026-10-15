@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Animação para pedidos urgentes nas Etapas 1, 2 e 3 */
+@keyframes pulseLightRed {
+  0%, 100% {
+    background-color: rgba(254, 226, 226, 0.45);
+  }
+  50% {
+    background-color: rgba(254, 202, 202, 0.85);
+  }
+}
+
+@keyframes pulseLightRedDark {
+  0%, 100% {
+    background-color: rgba(153, 27, 27, 0.2);
+  }
+  50% {
+    background-color: rgba(185, 28, 28, 0.45);
+  }
+}
+
+.urgent-blinking-row {
+  animation: pulseLightRed 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.dark .urgent-blinking-row {
+  animation: pulseLightRedDark 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}

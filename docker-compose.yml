@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  painel-pedidos:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: painel_pedidos_totvs
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=file:/app/prisma/dev.db
+      - JWT_SECRET=painel-pedidos-super-secret-jwt-key-2026-totvs
+      - PORT=3000
+    volumes:
+      - painel_data:/app/prisma
+
+volumes:
+  painel_data:
+    driver: local

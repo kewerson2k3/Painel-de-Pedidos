@@ -1,0 +1,144 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Department {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  code        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  users       User[]
+
+  @@map("departments")
+}
+
+model User {
+  id             String     @id @default(cuid())
+  name           String
+  username       String     @unique
+  password       String
+  departmentId   String
+  department     Department @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  role           String     @default("USER") // "ADMIN" ou "USER"
+  active         Boolean    @default(true)
+
+  // Permissões granulares configuradas pelo Administrador
+  canCreateOrder Boolean    @default(false) // Pode incluir pedidos
+  viewAllStages  Boolean    @default(false) // Pode visualizar todas as etapas
+  canEmbarcar    Boolean    @default(false) // Pode dar Embarque (Logística)
+  canSeparar     Boolean    @default(false) // Pode Autorizar Faturamento / Separar (Logística)
+  canFaturar     Boolean    @default(false) // Pode Emitir Nota Fiscal (Faturamento)
+  canEditOrder   Boolean    @default(false) // Pode editar informações gerais
+  canCancelOrder Boolean    @default(false) // Pode cancelar pedidos
+  canManageUsers Boolean    @default(false) // Pode gerenciar usuários e permissões
+
+  ordersCreated  Order[]        @relation("OrderCreatedBy")
+  historyLogs    OrderHistory[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@map("users")
+}
+
+model Order {
+  id                 String   @id @default(cuid())
+  orderNumber        String   @unique // Número do Pedido no TOTVS
+  customerName       String   // Razão Social / Nome do Cliente
+  customerCode       String?  // Código do Cliente no TOTVS
+  orderValue         Float?   // Valor total aproximado (opcional)
+  orderType          String?  @default("Venda") // Locação, Comodato, Demonstração, Venda, Serviço, Insumo
+  isUrgent           Boolean  @default(false)   // Caixa de seleção Urgente
+  generalNotes       String?  // Observações gerais da inclusão
+  fiscalNotes        String?  // Observação Fiscal (Faturamento)
+  deliveryNotes      String?  // Observação de Entrega (Transporte)
+
+  // Status da Esteira:
+  // AGUARDANDO_EMBARQUE
+  // AGUARDANDO_SEPARACAO
+  // AGUARDANDO_NOTA_FISCAL
+  // FATURADO
+  // CANCELADO
+  status             String   @default("AGUARDANDO_EMBARQUE")
+
+  // Solicitante / Criador
+  createdById        String
+  createdBy          User     @relation("OrderCreatedBy", fields: [createdById], references: [id])
+
+  // Etapa 2: Embarque (Logística)
+  embarqueDate           DateTime?
+  carrier                String?   // Transportadora
+  vehiclePlate           String?   // Placa do veículo / modalidade
+  driverName             String?   // Nome do motorista
+  romaneio               String?   // Romaneio (Etapa Embarque)
+  embarqueAttachment     String?   // Caminho do anexo do embarque
+  embarqueAttachmentName String?   // Nome do anexo do embarque
+  embarqueNotes          String?   // Observações de embarque
+  embarqueUserId         String?   // Quem realizou o embarque
+  embarqueUserName       String?
+
+  // Etapa 3: Separação / Autorização de Faturamento (Logística)
+  separationDate     DateTime?
+  inspectorName      String?   // Conferente / separador
+  weight             String?   // Peso
+  volume             String?   // Volume
+  separationNotes    String?   // Observações de separação
+  separationUserId   String?   // Quem autorizou faturamento
+  separationUserName String?
+
+  // Etapa 4: Faturamento (Faturamento)
+  invoiceNumber      String?   // Número da Nota Fiscal
+  invoiceAccessKey   String?   // Chave de Acesso NF-e (44 dígitos)
+  invoiceDate        DateTime? // Data de emissão da NF
+  invoiceFiles       String?   // JSON string com anexos de NF
+  boletoFiles        String?   // JSON string com anexos de Boletos
+  invoiceNotes       String?   // Observações do faturamento
+  invoiceUserId      String?   // Quem faturou
+  invoiceUserName    String?
+
+  // Devolução por Divergência (Problema na Etapa 1, 2 ou 3)
+  returnReason           String?   // Motivo da divergência apontada
+  returnOriginStage      String?   // Etapa onde ocorreu o problema (AGUARDANDO_EMBARQUE, AGUARDANDO_SEPARACAO, AGUARDANDO_NOTA_FISCAL)
+  returnUserId           String?   // Quem apontou a divergência
+  returnUserName         String?
+  returnUserDept         String?
+  returnDate             DateTime?
+  returnResolutionNotes  String?   // Justificativa / ajuste do solicitante ao reencaminhar
+
+  // Auditoria e Histórico
+  history            OrderHistory[]
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([orderNumber])
+  @@index([status])
+  @@index([createdById])
+  @@index([isUrgent])
+  @@index([createdAt])
+  @@index([status, createdAt])
+  @@map("orders")
+}
+
+model OrderHistory {
+  id         String   @id @default(cuid())
+  orderId    String
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userName   String
+  userDept   String
+  action     String   // "CRIACAO", "EMBARQUE", "AUTORIZAR_FATURAMENTO", "EMITIR_NF", "EDICAO", "CANCELAMENTO"
+  fromStatus String?
+  toStatus   String
+  notes      String?
+  createdAt  DateTime @default(now())
+
+  @@index([orderId])
+  @@map("order_histories")
+}
